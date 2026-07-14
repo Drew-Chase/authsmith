@@ -4,7 +4,9 @@ version = "0.1.0"
 edition = "2024"
 
 [lib]
-name="authsmith_macros"
-path="src/lib.rs"
+name = "authsmith_macros"
+path = "src/lib.rs"
 
 [dependencies]
+proc-macro2 = { version = "1.0.106" }
+quote = { version = "1.0.46" }
