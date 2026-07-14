@@ -5,7 +5,9 @@
   "description": "Compile-time config consumed by authsmith::generate!(). SMTP credentials and DB connection strings are NOT part of this file — those stay in runtime env vars.",
   "type": "object",
   "additionalProperties": false,
-  "required": ["db"],
+  "required": [
+    "db"
+  ],
   "properties": {
     "$schema": true,
     "http": {
@@ -26,12 +28,15 @@
         },
         "framework": {
           "type": "string",
-          "enum": ["axum", "actix-web", "none"],
+          "enum": [
+            "axum",
+            "actix-web",
+            "none"
+          ],
           "description": "Required whenever automatically_generate_endpoints is true (the default). No default value on purpose — pick explicitly rather than guessing your stack. Use `none` if you only want handler functions. Not structurally enforced here (kept out of the schema for validator compatibility) — authsmith::generate!() will refuse to compile without it in that case."
         }
       }
     },
-
     "email": {
       "type": "object",
       "additionalProperties": false,
@@ -49,7 +54,6 @@
         }
       }
     },
-
     "mfa": {
       "type": "object",
       "additionalProperties": false,
@@ -61,30 +65,108 @@
         },
         "methods": {
           "type": "array",
-          "items": { "type": "string", "enum": ["totp", "email_otp", "sms"] },
+          "items": {
+            "type": "string",
+            "enum": [
+              "totp",
+              "email_otp",
+              "sms"
+            ]
+          },
           "minItems": 1,
-          "default": ["totp"]
+          "default": [
+            "totp"
+          ]
         },
         "max_trusted_devices": {
-          "type": ["integer", "string"],
+          "type": [
+            "integer",
+            "string"
+          ],
           "default": "*",
           "description": "Renamed from `max_list_of_authorized_connections`. ASSUMPTION: this is the cap on remembered/trusted devices that can skip MFA after initial verification — confirm this matches your intent, the original name was ambiguous. If an integer, must be >= 1. The only valid string value is \"*\" (unlimited)."
         }
       }
     },
-
+    "session": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "How auth credentials are represented and delivered to the client after login. Split into two independent axes rather than one flat enum, since format and delivery are separate decisions.",
+      "properties": {
+        "format": {
+          "type": "string",
+          "enum": [
+            "jwt",
+            "opaque"
+          ],
+          "default": "jwt",
+          "description": "jwt: signed, self-contained, no DB lookup to validate — but can't be revoked early without a blocklist, so pair with a short access_token_ttl_seconds and refresh. opaque: random token/session id looked up server-side each request — trivially revocable, costs a lookup per request."
+        },
+        "delivery": {
+          "type": "string",
+          "enum": [
+            "bearer",
+            "cookie"
+          ],
+          "default": "bearer",
+          "description": "bearer: client stores the token and sends `Authorization: Bearer <token>` — required for native/mobile/desktop clients since there's no shared browser cookie jar. cookie: server sets an httponly+secure+samesite cookie, browser attaches it automatically — web clients only, needs CSRF protection. The old `none` option was really opaque+cookie, i.e. a traditional server session."
+        },
+        "access_token_ttl_seconds": {
+          "type": "integer",
+          "minimum": 30,
+          "default": 900,
+          "description": "How long an access token/session is valid before it must be refreshed or the user re-authenticates."
+        },
+        "refresh": {
+          "type": "boolean",
+          "default": true,
+          "description": "Issue a long-lived refresh token/cookie alongside the access credential so the client can silently obtain a new one instead of forcing re-login."
+        },
+        "refresh_token_ttl_seconds": {
+          "type": "integer",
+          "minimum": 60,
+          "default": 1209600,
+          "description": "Only used when refresh is true. Default is 14 days."
+        },
+        "cookie_name": {
+          "type": "string",
+          "default": "authsmith_session",
+          "description": "Only used when delivery is cookie."
+        },
+        "same_site": {
+          "type": "string",
+          "enum": [
+            "strict",
+            "lax",
+            "none"
+          ],
+          "default": "lax",
+          "description": "Only used when delivery is cookie."
+        }
+      }
+    },
     "db": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["type"],
+      "required": [
+        "type"
+      ],
       "properties": {
         "type": {
           "type": "string",
-          "enum": ["mysql", "sqlite", "postgres"]
+          "enum": [
+            "mysql",
+            "sqlite",
+            "postgres"
+          ]
         },
         "id_strategy": {
           "type": "string",
-          "enum": ["auto_increment", "uuidv4", "ulid"],
+          "enum": [
+            "auto_increment",
+            "uuidv4",
+            "ulid"
+          ],
           "default": "uuidv4",
           "description": "Primary key strategy for the users table. uuidv4/ulid avoid ID-enumeration attacks directly, which is the actual fix for the concern hash_user_ids was gesturing at."
         },
@@ -97,7 +179,10 @@
           "type": "object",
           "additionalProperties": false,
           "properties": {
-            "required": { "type": "boolean", "default": true },
+            "required": {
+              "type": "boolean",
+              "default": true
+            },
             "allowed_domains": {
               "type": "object",
               "additionalProperties": false,
@@ -105,12 +190,19 @@
               "properties": {
                 "mode": {
                   "type": "string",
-                  "enum": ["allow_all", "allow_list", "deny_list"],
+                  "enum": [
+                    "allow_all",
+                    "allow_list",
+                    "deny_list"
+                  ],
                   "default": "allow_all"
                 },
                 "domains": {
                   "type": "array",
-                  "items": { "type": "string", "format": "hostname" },
+                  "items": {
+                    "type": "string",
+                    "format": "hostname"
+                  },
                   "default": []
                 }
               }
@@ -121,12 +213,32 @@
           "type": "object",
           "additionalProperties": false,
           "properties": {
-            "min_length": { "type": "integer", "minimum": 8, "default": 12 },
-            "max_length": { "type": "integer", "maximum": 256, "default": 64 },
-            "requires_special_char": { "type": "boolean", "default": false },
-            "requires_number": { "type": "boolean", "default": false },
-            "requires_capital": { "type": "boolean", "default": false },
-            "requires_lowercase": { "type": "boolean", "default": false },
+            "min_length": {
+              "type": "integer",
+              "minimum": 8,
+              "default": 12
+            },
+            "max_length": {
+              "type": "integer",
+              "maximum": 256,
+              "default": 64
+            },
+            "requires_special_char": {
+              "type": "boolean",
+              "default": false
+            },
+            "requires_number": {
+              "type": "boolean",
+              "default": false
+            },
+            "requires_capital": {
+              "type": "boolean",
+              "default": false
+            },
+            "requires_lowercase": {
+              "type": "boolean",
+              "default": false
+            },
             "check_breached_passwords": {
               "type": "boolean",
               "default": true,
@@ -140,20 +252,41 @@
           "additionalProperties": {
             "type": "object",
             "additionalProperties": false,
-            "required": ["type"],
+            "required": [
+              "type"
+            ],
             "properties": {
               "type": {
                 "type": "string",
-                "enum": ["string", "integer", "boolean", "email", "date", "enum"]
+                "enum": [
+                  "string",
+                  "integer",
+                  "boolean",
+                  "email",
+                  "date",
+                  "enum"
+                ]
               },
-              "min_length": { "type": "integer" },
-              "max_length": { "type": "integer" },
-              "required": { "type": "boolean", "default": false },
-              "unique": { "type": "boolean", "default": false },
+              "min_length": {
+                "type": "integer"
+              },
+              "max_length": {
+                "type": "integer"
+              },
+              "required": {
+                "type": "boolean",
+                "default": false
+              },
+              "unique": {
+                "type": "boolean",
+                "default": false
+              },
               "default": {},
               "enum_values": {
                 "type": "array",
-                "items": { "type": "string" },
+                "items": {
+                  "type": "string"
+                },
                 "description": "Required when type is 'enum'."
               }
             }
