@@ -1,0 +1,62 @@
+{
+  "$schema": "../../authsmith.config.schema.json",
+
+  "http": {
+    "automatically_generate_endpoints": true,
+    "base_path": "/api/auth",
+    "framework": "actix-web"
+  },
+
+  "email": {
+    "registration": true,
+    "forgot_password": true
+  },
+
+  "mfa": {
+    "required": true,
+    "methods": ["totp"],
+    "max_trusted_devices": 5
+  },
+
+  "session": {
+    "format": "jwt",
+    "delivery": "bearer",
+    "access_token_ttl_seconds": 900,
+    "refresh": true,
+    "refresh_token_ttl_seconds": 1209600
+  },
+
+  "db": {
+    "type": "sqlite",
+    "id_strategy": "uuidv4",
+    "hash_user_ids": false,
+
+    "email": {
+      "required": true,
+      "allowed_domains": {
+        "mode": "allow_all"
+      }
+    },
+
+    "password": {
+      "min_length": 12,
+      "max_length": 64,
+      "check_breached_passwords": true
+    },
+
+    "additional_fields": {
+      "username": {
+        "type": "string",
+        "min_length": 4,
+        "max_length": 64,
+        "required": false,
+        "unique": true
+      },
+      "bio": {
+        "type": "string",
+        "max_length": 255,
+        "required": false
+      }
+    }
+  }
+}

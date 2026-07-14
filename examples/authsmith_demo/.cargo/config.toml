@@ -1,0 +1,9 @@
+[env]
+
+# SMTP Settings
+SMTP_HOST = ""
+SMTP_USER = ""
+SMTP_PASS = ""
+SMTP_PORT = 21
+
+#
