@@ -7,6 +7,7 @@
   "additionalProperties": false,
   "required": ["db"],
   "properties": {
+    "$schema": true,
     "http": {
       "type": "object",
       "additionalProperties": false,
