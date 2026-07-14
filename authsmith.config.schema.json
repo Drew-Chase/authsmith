@@ -1,0 +1,165 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://example.com/authsmith.config.schema.json",
+  "title": "authsmith configuration",
+  "description": "Compile-time config consumed by authsmith::generate!(). SMTP credentials and DB connection strings are NOT part of this file — those stay in runtime env vars.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["db"],
+  "properties": {
+    "http": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "Controls whether/how HTTP endpoints are generated. Omit entirely if you only want the framework-agnostic handler functions and will wire routes yourself.",
+      "properties": {
+        "automatically_generate_endpoints": {
+          "type": "boolean",
+          "default": true,
+          "description": "If true, generate ready-to-mount routes for the chosen framework. If false, only the underlying handler functions/services are generated."
+        },
+        "base_path": {
+          "type": "string",
+          "default": "/api/auth",
+          "pattern": "^/",
+          "description": "Renamed from `endpoint_hase_path` in the original draft — assumed to be a typo for `base_path`."
+        },
+        "framework": {
+          "type": "string",
+          "enum": ["axum", "actix-web", "none"],
+          "description": "Required whenever automatically_generate_endpoints is true (the default). No default value on purpose — pick explicitly rather than guessing your stack. Use `none` if you only want handler functions. Not structurally enforced here (kept out of the schema for validator compatibility) — authsmith::generate!() will refuse to compile without it in that case."
+        }
+      }
+    },
+
+    "email": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "Feature toggles for transactional auth emails. SMTP transport/creds are supplied at runtime, not here.",
+      "properties": {
+        "registration": {
+          "type": "boolean",
+          "default": true,
+          "description": "Send a verification email on registration."
+        },
+        "forgot_password": {
+          "type": "boolean",
+          "default": true,
+          "description": "Enable the forgot-password / reset-password email flow."
+        }
+      }
+    },
+
+    "mfa": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "required": {
+          "type": "boolean",
+          "default": false,
+          "description": "Force MFA enrollment for all users."
+        },
+        "methods": {
+          "type": "array",
+          "items": { "type": "string", "enum": ["totp", "email_otp", "sms"] },
+          "minItems": 1,
+          "default": ["totp"]
+        },
+        "max_trusted_devices": {
+          "type": ["integer", "string"],
+          "default": "*",
+          "description": "Renamed from `max_list_of_authorized_connections`. ASSUMPTION: this is the cap on remembered/trusted devices that can skip MFA after initial verification — confirm this matches your intent, the original name was ambiguous. If an integer, must be >= 1. The only valid string value is \"*\" (unlimited)."
+        }
+      }
+    },
+
+    "db": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["type"],
+      "properties": {
+        "type": {
+          "type": "string",
+          "enum": ["mysql", "sqlite", "postgres"]
+        },
+        "id_strategy": {
+          "type": "string",
+          "enum": ["auto_increment", "uuidv4", "ulid"],
+          "default": "uuidv4",
+          "description": "Primary key strategy for the users table. uuidv4/ulid avoid ID-enumeration attacks directly, which is the actual fix for the concern hash_user_ids was gesturing at."
+        },
+        "hash_user_ids": {
+          "type": "boolean",
+          "default": false,
+          "description": "Store an additional opaque hashed handle for externally-exposed user references (URLs, tokens), layered on top of id_strategy. Extra obfuscation, not a substitute for id_strategy."
+        },
+        "email": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "required": { "type": "boolean", "default": true },
+            "allowed_domains": {
+              "type": "object",
+              "additionalProperties": false,
+              "description": "Replaces the old `allowed_providers: [\"*\", \"gmail.com\"]` — that mixed a wildcard and a specific value in one array with no defined precedence. `domains` is required when mode isn't `allow_all` (not structurally enforced here for validator compatibility; authsmith::generate!() checks this at compile time).",
+              "properties": {
+                "mode": {
+                  "type": "string",
+                  "enum": ["allow_all", "allow_list", "deny_list"],
+                  "default": "allow_all"
+                },
+                "domains": {
+                  "type": "array",
+                  "items": { "type": "string", "format": "hostname" },
+                  "default": []
+                }
+              }
+            }
+          }
+        },
+        "password": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "min_length": { "type": "integer", "minimum": 8, "default": 12 },
+            "max_length": { "type": "integer", "maximum": 256, "default": 64 },
+            "requires_special_char": { "type": "boolean", "default": false },
+            "requires_number": { "type": "boolean", "default": false },
+            "requires_capital": { "type": "boolean", "default": false },
+            "requires_lowercase": { "type": "boolean", "default": false },
+            "check_breached_passwords": {
+              "type": "boolean",
+              "default": true,
+              "description": "Reject passwords found via the HaveIBeenPwned k-anonymity API. NIST 800-63B recommends this over composition rules; the requires_* flags above are kept for teams with compliance requirements that still mandate them."
+            }
+          }
+        },
+        "additional_fields": {
+          "type": "object",
+          "description": "Arbitrary extra columns on the user record. Keys are field names.",
+          "additionalProperties": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["type"],
+            "properties": {
+              "type": {
+                "type": "string",
+                "enum": ["string", "integer", "boolean", "email", "date", "enum"]
+              },
+              "min_length": { "type": "integer" },
+              "max_length": { "type": "integer" },
+              "required": { "type": "boolean", "default": false },
+              "unique": { "type": "boolean", "default": false },
+              "default": {},
+              "enum_values": {
+                "type": "array",
+                "items": { "type": "string" },
+                "description": "Required when type is 'enum'."
+              }
+            }
+          },
+          "default": {}
+        }
+      }
+    }
+  }
+}

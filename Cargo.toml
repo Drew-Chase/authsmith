@@ -1,0 +1,14 @@
+[workspace]
+resolver = "3"
+members = ["crates/authsmith-build","crates/authsmith-core","crates/authsmith-macros", "examples/authsmith_demo"]
+default-members = ["crates/authsmith-build","crates/authsmith-core","crates/authsmith-macros"]
+
+[package]
+name="authsmith"
+description = ""
+keywords = []
+authors = ["Drew Chase"]
+
+[lib]
+name="authsmith"
+path = "lib.rs"
